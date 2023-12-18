@@ -1,0 +1,82 @@
+name: knots
+version: 0.1.0
+
+github: ejconlon/knots
+license: BSD3
+author: Eric Conlon
+maintainer: ejconlon@gmail.com
+copyright: (c) 2023 Eric Conlon
+synopsis: Tying knots in polynomial functors
+description: Please see the README on GitHub at <https://github.com/ejconlon/knots#readme>
+tested-with: GHC == 9.6.3
+
+language: GHC2021
+
+extra-source-files:
+- README.md
+
+dependencies:
+- base >= 4.12 && < 5
+
+default-extensions:
+- BangPatterns
+- ConstraintKinds
+- DataKinds
+- DeriveFunctor
+- DeriveFoldable
+- DeriveGeneric
+- DeriveTraversable
+- DerivingStrategies
+- DerivingVia
+- FlexibleContexts
+- FlexibleInstances
+- FunctionalDependencies
+- GADTs
+- GeneralizedNewtypeDeriving
+- LambdaCase
+- KindSignatures
+- MultiParamTypeClasses
+- Rank2Types
+- ScopedTypeVariables
+- StandaloneDeriving
+- TupleSections
+- TypeApplications
+- TypeOperators
+- TypeFamilies
+
+ghc-options:
+- -Wall
+- -Wcompat
+- -Widentities
+- -Wincomplete-record-updates
+- -Wincomplete-uni-patterns
+- -Wpartial-fields
+- -Wredundant-constraints
+- -fno-warn-unused-top-binds
+
+library:
+  source-dirs: src
+
+executables:
+  knots-exe:
+    main: Main.hs
+    source-dirs: exe
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - knots
+
+tests:
+  knots-test:
+    main: Main.hs
+    source-dirs: test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - knots
+    - tasty
+    - tasty-hunit
