@@ -57,26 +57,3 @@ ghc-options:
 library:
   source-dirs: src
 
-executables:
-  knots-exe:
-    main: Main.hs
-    source-dirs: exe
-    ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
-    dependencies:
-    - knots
-
-tests:
-  knots-test:
-    main: Main.hs
-    source-dirs: test
-    ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
-    dependencies:
-    - knots
-    - tasty
-    - tasty-hunit
