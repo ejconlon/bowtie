@@ -18,7 +18,11 @@ extra-source-files:
 dependencies:
 - base >= 4.12 && < 5
 - bifunctors >= 5.6 && < 5.7
+- comonad >= 5.0 && < 5.1
+- mtl >= 2.3 && < 2.4
+- prettyprinter >= 1.7 && < 1.8
 - recursion-schemes >= 5.2 && < 5.3
+- semigroupoids >= 6.0 && < 6.1
 
 default-extensions:
 - BangPatterns
