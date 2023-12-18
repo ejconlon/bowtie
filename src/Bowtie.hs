@@ -3,7 +3,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 -- | Some useful fixpoints of Functors and Bifunctors.
-module Knots
+module Bowtie
   ( Base1
   , Recursive1 (..)
   , Corecursive1 (..)

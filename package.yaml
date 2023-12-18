@@ -1,13 +1,13 @@
-name: knots
+name: bowtie
 version: 0.1.0
 
-github: ejconlon/knots
+github: ejconlon/bowtie
 license: BSD3
 author: Eric Conlon
 maintainer: ejconlon@gmail.com
 copyright: (c) 2023 Eric Conlon
 synopsis: Tying knots in polynomial functors
-description: Please see the README on GitHub at <https://github.com/ejconlon/knots#readme>
+description: Please see the README on GitHub at <https://github.com/ejconlon/bowtie#readme>
 tested-with: GHC == 9.6.3
 
 language: GHC2021

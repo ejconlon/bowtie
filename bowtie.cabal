@@ -4,12 +4,12 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 
-name:           knots
+name:           bowtie
 version:        0.1.0
 synopsis:       Tying knots in polynomial functors
-description:    Please see the README on GitHub at <https://github.com/ejconlon/knots#readme>
-homepage:       https://github.com/ejconlon/knots#readme
-bug-reports:    https://github.com/ejconlon/knots/issues
+description:    Please see the README on GitHub at <https://github.com/ejconlon/bowtie#readme>
+homepage:       https://github.com/ejconlon/bowtie#readme
+bug-reports:    https://github.com/ejconlon/bowtie/issues
 author:         Eric Conlon
 maintainer:     ejconlon@gmail.com
 copyright:      (c) 2023 Eric Conlon
@@ -22,13 +22,13 @@ extra-source-files:
 
 source-repository head
   type: git
-  location: https://github.com/ejconlon/knots
+  location: https://github.com/ejconlon/bowtie
 
 library
   exposed-modules:
-      Knots
+      Bowtie
   other-modules:
-      Paths_knots
+      Paths_bowtie
   hs-source-dirs:
       src
   default-extensions:

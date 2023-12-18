@@ -1,3 +1,3 @@
-# knots
+# bowtie
 
 Tying knots in functors
