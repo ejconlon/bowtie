@@ -1,3 +1,3 @@
 # knots
 
-Tying knots in polynomial functors
+Tying knots in functors
