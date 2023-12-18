@@ -39,6 +39,8 @@ module Bowtie
   , memoVal
   , memoCata
   , memoCataM
+  , memoRight
+  , memoRightM
   )
 where
 
@@ -295,3 +297,11 @@ memoCataM :: (Monad m, Traversable f) => (f x -> ReaderT k m x) -> Memo f k -> m
 memoCataM f = go
  where
   go (MemoP k v) = traverse go v >>= \x -> runReaderT (f x) k
+
+-- | Peek at the top value like 'annoRight'
+memoRight :: (f (Memo f k) -> Reader k x) -> Memo f k -> x
+memoRight f = annoRight f . unMemoF . unMemo
+
+-- | Peek at the top value like 'annoRightM'
+memoRightM :: (f (Memo f k) -> ReaderT k m x) -> Memo f k -> m x
+memoRightM f = annoRightM f . unMemoF . unMemo
