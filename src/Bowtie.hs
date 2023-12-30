@@ -1,5 +1,4 @@
 {-# LANGUAGE PatternSynonyms #-}
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 -- | Some useful fixpoints of Functors and Bifunctors.
@@ -9,6 +8,9 @@ module Bowtie
   , Corecursive1 (..)
   , cata1
   , cata1M
+  , fmapViaBi
+  , foldrViaBi
+  , traverseViaBi
   , Fix (..)
   , mkFix
   , unMkFix
@@ -41,6 +43,23 @@ module Bowtie
   , memoCataM
   , memoRight
   , memoRightM
+  , memoExtend
+  , JotF (..)
+  , pattern JotFP
+  , jotFKey
+  , jotFVal
+  , Jot (..)
+  , pattern JotP
+  , mkJot
+  , unMkJot
+  , transJot
+  , jotKey
+  , jotVal
+  , jotCata
+  , jotCataM
+  , jotRight
+  , jotRightM
+  , jotExtend
   )
 where
 
@@ -49,14 +68,13 @@ import Control.Monad ((>=>))
 import Control.Monad.Reader (Reader, ReaderT (..), runReader)
 import Data.Bifoldable (Bifoldable (..))
 import Data.Bifunctor (Bifunctor (..))
-import Data.Bifunctor.TH (deriveBifoldable, deriveBifunctor, deriveBitraversable)
 import Data.Bitraversable (Bitraversable (..))
 import Data.Functor.Apply (Apply (..))
 import Data.Functor.Foldable (Base, Corecursive (..), Recursive (..))
 import Data.Functor.Identity (Identity (..))
 import Data.Kind (Type)
-import Data.String (IsString)
-import Prettyprinter (Pretty)
+import Data.String (IsString (..))
+import Prettyprinter (Pretty (..))
 
 -- | 'Base' for Bifunctors
 type family Base1 (f :: Type -> Type) :: Type -> Type -> Type
@@ -77,12 +95,15 @@ cata1 f = go where go = f . second go . project1
 cata1M :: (Monad m, Recursive1 f, Base1 f ~ g, Bitraversable g) => (g a b -> m b) -> f a -> m b
 cata1M f = go where go = bitraverse pure go . project1 >=> f
 
+-- | A useful default 'fmap'
 fmapViaBi :: (Recursive1 f, Corecursive1 f, Base1 f ~ g) => (a -> b) -> f a -> f b
 fmapViaBi f = go where go = embed1 . bimap f go . project1
 
+-- | A useful default 'foldr'
 foldrViaBi :: (Recursive1 f, Base1 f ~ g, Bifoldable g) => (a -> b -> b) -> b -> f a -> b
 foldrViaBi f = flip go where go fa b = bifoldr f go b (project1 fa)
 
+-- | A useful default 'traverse'
 traverseViaBi
   :: (Recursive1 f, Corecursive1 f, Base1 f ~ g, Bitraversable g, Applicative m) => (a -> m b) -> f a -> m (f b)
 traverseViaBi f = go where go = fmap embed1 . bitraverse f go . project1
@@ -165,14 +186,19 @@ transKnot nat = go
 -- | An "annotation" - a strict key associated with a lazy value.
 -- Hopefully this is a bit better behaved than just a tuple, being
 -- strict in the head and lazy in the tail when this is tied into a
--- recursive structure.
+-- recursive structure through the second position.
 type Anno :: Type -> Type -> Type
 data Anno k v = Anno {annoKey :: !k, annoVal :: v}
   deriving stock (Eq, Ord, Show, Functor, Foldable, Traversable)
 
-deriveBifunctor ''Anno
-deriveBifoldable ''Anno
-deriveBitraversable ''Anno
+instance Bifunctor Anno where
+  bimap f g (Anno k v) = Anno (f k) (g v)
+
+instance Bifoldable Anno where
+  bifoldr f g z (Anno k v) = f k (g v z)
+
+instance Bitraversable Anno where
+  bitraverse f g (Anno k v) = liftA2 Anno (f k) (g v)
 
 instance (Semigroup k) => Apply (Anno k) where
   liftF2 f (Anno k1 v1) (Anno k2 v2) = Anno (k1 <> k2) (f v1 v2)
@@ -183,7 +209,14 @@ instance (Monoid k) => Applicative (Anno k) where
 
 instance Comonad (Anno k) where
   extract (Anno _ v) = v
+  duplicate an@(Anno k _) = Anno k an
   extend f an@(Anno k _) = Anno k (f an)
+
+instance (Pretty v) => Pretty (Anno k v) where
+  pretty = pretty . annoVal
+
+instance (Monoid k, IsString v) => IsString (Anno k v) where
+  fromString = Anno mempty . fromString
 
 -- | 'unit' from 'Adjunction'
 annoUnit :: v -> Reader k (Anno k v)
@@ -223,6 +256,10 @@ pattern MemoFP k v = MemoF (Anno k v)
 
 {-# COMPLETE MemoFP #-}
 
+deriving newtype instance (Monoid k, IsString (f r)) => IsString (MemoF f k r)
+
+deriving newtype instance (Pretty (f r)) => Pretty (MemoF f k r)
+
 instance (Apply f, Semigroup k) => Apply (MemoF f k) where
   liftF2 f (MemoF (Anno k1 v1)) (MemoF (Anno k2 v2)) = MemoF (Anno (k1 <> k2) (liftF2 f v1 v2))
 
@@ -230,6 +267,13 @@ instance (Applicative f, Monoid k) => Applicative (MemoF f k) where
   pure = MemoF . Anno mempty . pure
   liftA2 f (MemoF (Anno k1 v1)) (MemoF (Anno k2 v2)) = MemoF (Anno (k1 <> k2) (liftA2 f v1 v2))
 
+memoFKey :: MemoF f k r -> k
+memoFKey (MemoFP k _) = k
+
+memoFVal :: MemoF f k r -> f r
+memoFVal (MemoFP _ v) = v
+
+-- | An annotated 'Fix'
 type Memo :: (Type -> Type) -> Type -> Type
 newtype Memo f k = Memo {unMemo :: MemoF f k (Memo f k)}
 
@@ -238,17 +282,15 @@ pattern MemoP k v = Memo (MemoF (Anno k v))
 
 {-# COMPLETE MemoP #-}
 
-memoFKey :: MemoF f k r -> k
-memoFKey (MemoFP k _) = k
+deriving newtype instance (Eq k, Eq (f (Memo f k))) => Eq (Memo f k)
 
-memoFVal :: MemoF f k r -> f r
-memoFVal (MemoFP _ v) = v
-
-deriving stock instance (Eq k, Eq (f (Memo f k))) => Eq (Memo f k)
-
-deriving stock instance (Ord k, Ord (f (Memo f k))) => Ord (Memo f k)
+deriving newtype instance (Ord k, Ord (f (Memo f k))) => Ord (Memo f k)
 
 deriving stock instance (Show k, Show (f (Memo f k))) => Show (Memo f k)
+
+deriving newtype instance (Monoid k, IsString (f (Memo f k))) => IsString (Memo f k)
+
+deriving newtype instance (Pretty (f (Memo f k))) => Pretty (Memo f k)
 
 instance (Functor f) => Functor (Memo f) where
   fmap f = go where go (MemoP k v) = MemoP (f k) (fmap go v)
@@ -305,3 +347,121 @@ memoRight f = annoRight f . unMemoF . unMemo
 -- | Peek at the top value like 'annoRightM'
 memoRightM :: (f (Memo f k) -> ReaderT k m x) -> Memo f k -> m x
 memoRightM f = annoRightM f . unMemoF . unMemo
+
+-- | Re-annotate top-down
+memoExtend :: (Functor f) => (Memo f k -> x) -> Memo f k -> Memo f x
+memoExtend w = go where go m@(MemoP _ v) = MemoP (w m) (fmap go v)
+
+-- | The base functor for a 'Jot'
+newtype JotF g k a r = JotF {unJotF :: Anno k (g a r)}
+  deriving stock (Show, Functor)
+  deriving newtype (Eq, Ord)
+
+pattern JotFP :: k -> g a r -> JotF g k a r
+pattern JotFP k v = JotF (Anno k v)
+
+{-# COMPLETE JotFP #-}
+
+deriving newtype instance (Monoid k, IsString (g a r)) => IsString (JotF g k a r)
+
+deriving newtype instance (Pretty (g a r)) => Pretty (JotF g k a r)
+
+instance (Bifunctor g) => Bifunctor (JotF g k) where
+  bimap f g = go where go = JotF . fmap (bimap f g) . unJotF
+
+instance (Bifoldable g) => Bifoldable (JotF g k) where
+  bifoldr f g = go where go z = bifoldr f g z . annoVal . unJotF
+
+instance (Bitraversable g) => Bitraversable (JotF g k) where
+  bitraverse f g = go where go = fmap JotF . traverse (bitraverse f g) . unJotF
+
+jotFKey :: JotF g k a r -> k
+jotFKey (JotFP k _) = k
+
+jotFVal :: JotF g k a r -> g a r
+jotFVal (JotFP _ v) = v
+
+-- | An annotated 'Knot'
+type Jot :: (Type -> Type -> Type) -> Type -> Type -> Type
+newtype Jot g k a = Jot {unJot :: JotF g k a (Jot g k a)}
+
+pattern JotP :: k -> g a (Jot g k a) -> Jot g k a
+pattern JotP k v = Jot (JotF (Anno k v))
+
+{-# COMPLETE JotP #-}
+
+deriving newtype instance (Eq k, Eq (g a (Jot g k a))) => Eq (Jot g k a)
+
+deriving newtype instance (Ord k, Ord (g a (Jot g k a))) => Ord (Jot g k a)
+
+deriving stock instance (Show k, Show (g a (Jot g k a))) => Show (Jot g k a)
+
+deriving newtype instance (Monoid k, IsString (g a (Jot g k a))) => IsString (Jot g k a)
+
+deriving newtype instance (Pretty (g a (Jot g k a))) => Pretty (Jot g k a)
+
+type instance Base1 (Jot g k) = JotF g k
+
+instance (Bifunctor g) => Recursive1 (Jot g k) where project1 = unJot
+
+instance (Bifunctor g) => Corecursive1 (Jot g k) where embed1 = Jot
+
+instance (Bifunctor g) => Functor (Jot g k) where fmap = fmapViaBi
+
+instance (Bifunctor g, Bifoldable g) => Foldable (Jot g k) where foldr = foldrViaBi
+
+instance (Bitraversable g) => Traversable (Jot g k) where traverse = traverseViaBi
+
+instance (Bifunctor g) => Bifunctor (Jot g) where
+  bimap f g = go where go (JotP k v) = JotP (f k) (bimap g go v)
+
+instance (Bifoldable g) => Bifoldable (Jot g) where
+  bifoldr f g = flip go where go (JotP k v) z = f k (bifoldr g go z v)
+
+instance (Bitraversable g) => Bitraversable (Jot g) where
+  bitraverse f g = go where go (JotP k v) = liftA2 JotP (f k) (bitraverse g go v)
+
+-- | Pull a recursive structure apart and retie as a 'Jot', using the given
+-- function to calculate a key for every level.
+mkJot :: (Recursive1 t, Base1 t ~ g) => (g a k -> k) -> t a -> Jot g k a
+mkJot f = cata1 (\v -> JotP (f (fmap jotKey v)) v)
+
+-- | Forget keys at every level and convert back to a plain structure.
+unMkJot :: (Corecursive1 t, Base1 t ~ g) => Jot g k a -> t a
+unMkJot (JotP _ v) = embed1 (fmap unMkJot v)
+
+-- | Transform the base functor.
+transJot :: (Bifunctor g) => (forall x. g a x -> h a x) -> Jot g k a -> Jot h k a
+transJot nat = go
+ where
+  go (JotP k v) = JotP k (nat (second go v))
+
+jotKey :: Jot g k a -> k
+jotKey (JotP k _) = k
+
+jotVal :: Jot g k a -> g a (Jot g k a)
+jotVal (JotP _ v) = v
+
+-- | 'cata' but nicer
+jotCata :: (Bifunctor g) => (g a x -> Reader k x) -> Jot g k a -> x
+jotCata f = go
+ where
+  go (JotP k v) = runReader (f (fmap go v)) k
+
+-- | 'cataM' but nicer
+jotCataM :: (Monad m, Bitraversable g) => (g a x -> ReaderT k m x) -> Jot g k a -> m x
+jotCataM f = go
+ where
+  go (JotP k v) = bitraverse pure go v >>= \x -> runReaderT (f x) k
+
+-- | Peek at the top value like 'annoRight'
+jotRight :: (g a (Jot g k a) -> Reader k x) -> Jot g k a -> x
+jotRight f = annoRight f . unJotF . unJot
+
+-- | Peek at the top value like 'annoRightM'
+jotRightM :: (g a (Jot g k a) -> ReaderT k m x) -> Jot g k a -> m x
+jotRightM f = annoRightM f . unJotF . unJot
+
+-- | Re-annotate top-down
+jotExtend :: (Bifunctor g) => (Jot g k a -> x) -> Jot g k a -> Jot g x a
+jotExtend w = go where go j@(JotP _ v) = JotP (w j) (fmap go v)
