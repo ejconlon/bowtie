@@ -52,6 +52,7 @@ module Bowtie
   , pattern JotP
   , mkJot
   , unMkJot
+  , annoJot
   , transJot
   , jotKey
   , jotVal
@@ -64,6 +65,7 @@ module Bowtie
 where
 
 import Control.Comonad (Comonad (..))
+import Control.Exception (Exception)
 import Control.Monad ((>=>))
 import Control.Monad.Reader (Reader, ReaderT (..), runReader)
 import Data.Bifoldable (Bifoldable (..))
@@ -74,6 +76,7 @@ import Data.Functor.Foldable (Base, Corecursive (..), Recursive (..))
 import Data.Functor.Identity (Identity (..))
 import Data.Kind (Type)
 import Data.String (IsString (..))
+import Data.Typeable (Typeable)
 import Prettyprinter (Pretty (..))
 
 -- | 'Base' for Bifunctors
@@ -183,12 +186,9 @@ transKnot nat = go
  where
   go = Knot . nat . second go . unKnot
 
--- | An "annotation" - a strict key associated with a lazy value.
--- Hopefully this is a bit better behaved than just a tuple, being
--- strict in the head and lazy in the tail when this is tied into a
--- recursive structure through the second position.
+-- | An "annotation" with associated value.
 type Anno :: Type -> Type -> Type
-data Anno k v = Anno {annoKey :: !k, annoVal :: v}
+data Anno k v = Anno {annoKey :: !k, annoVal :: !v}
   deriving stock (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 instance Bifunctor Anno where
@@ -217,6 +217,8 @@ instance (Pretty v) => Pretty (Anno k v) where
 
 instance (Monoid k, IsString v) => IsString (Anno k v) where
   fromString = Anno mempty . fromString
+
+instance (Show k, Typeable k, Exception v) => Exception (Anno k v)
 
 -- | 'unit' from 'Adjunction'
 annoUnit :: v -> Reader k (Anno k v)
@@ -430,6 +432,10 @@ mkJot f = cata1 (\v -> JotP (f (fmap jotKey v)) v)
 unMkJot :: (Corecursive1 t, Base1 t ~ g) => Jot g k a -> t a
 unMkJot (JotP _ v) = embed1 (fmap unMkJot v)
 
+-- | Quick conversion from annotated functor.
+annoJot :: Anno b (g a (Jot g b a)) -> Jot g b a
+annoJot = Jot . JotF
+
 -- | Transform the base functor.
 transJot :: (Bifunctor g) => (forall x. g a x -> h a x) -> Jot g k a -> Jot h k a
 transJot nat = go
@@ -449,10 +455,10 @@ jotCata f = go
   go (JotP k v) = runReader (f (fmap go v)) k
 
 -- | 'cataM' but nicer
-jotCataM :: (Monad m, Bitraversable g) => (g a x -> ReaderT k m x) -> Jot g k a -> m x
+jotCataM :: (Bifunctor g) => (g a (m x) -> ReaderT k m x) -> Jot g k a -> m x
 jotCataM f = go
  where
-  go (JotP k v) = bitraverse pure go v >>= \x -> runReaderT (f x) k
+  go (JotP k v) = runReaderT (f (fmap go v)) k
 
 -- | Peek at the top value like 'annoRight'
 jotRight :: (g a (Jot g k a) -> Reader k x) -> Jot g k a -> x
