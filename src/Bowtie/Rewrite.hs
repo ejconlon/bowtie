@@ -47,6 +47,9 @@ runRw m = runIdentity . runRwT m
 embedRwT :: m (Either (AnnoErr k e) a) -> RwT k e m a
 embedRwT n = RwT (ReaderT (const (ExceptT n)))
 
+embedRw :: Either (AnnoErr k e) a -> Rw k e a
+embedRw = embedRwT . Identity
+
 pushRw :: (Monad m) => k -> RwT k e m a -> RwT k e m a
 pushRw b m = RwT (local (NESeq.|> b) (unRwT m))
 
