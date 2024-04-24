@@ -8,6 +8,8 @@ module Bowtie.Memo
   , Memo (..)
   , pattern MemoP
   , mkMemo
+  , reMkMemo
+  , reMkMemoM
   , unMkMemo
   , transMemo
   , memoKey
@@ -94,14 +96,23 @@ instance (Functor f) => Corecursive (Memo f k) where embed = Memo
 mkMemo :: (Recursive t, Base t ~ f) => (f k -> k) -> t -> Memo f k
 mkMemo f = cata (\v -> MemoP (f (fmap memoKey v)) v)
 
--- | Rebuild a memo with a new annotation added.
-reMkMemo :: (Functor f) => (j -> x -> k) -> (f (Memo f k) -> x) -> Memo f j -> Memo f k
-reMkMemo mem calc = go
+-- | Rebuild a memo with a new annotation.
+reMkMemo :: (Functor f) => (MemoF f j (Memo f k) -> k) -> Memo f j -> Memo f k
+reMkMemo f = go
  where
-  go (MemoP j fm) =
-    let fk = fmap go fm
-        k = mem j (calc fk)
-    in  MemoP k fk
+  go (MemoP j fmj) =
+    let fmk = fmap go fmj
+        k = f (MemoFP j fmk)
+    in  MemoP k fmk
+
+-- | Rebuild a memo with a new annotation, effectfully.
+reMkMemoM :: (Traversable f, Monad m) => (MemoF f j (Memo f k) -> m k) -> Memo f j -> m (Memo f k)
+reMkMemoM f = go
+ where
+  go (MemoP j fmj) = do
+    fmk <- traverse go fmj
+    k <- f (MemoFP j fmk)
+    pure (MemoP k fmk)
 
 -- | Forget keys at every level and convert back to a plain structure.
 unMkMemo :: (Corecursive t, Base t ~ f) => Memo f k -> t

@@ -12,7 +12,7 @@ module Bowtie.Attr
 where
 
 import Bowtie.Anno (Anno (..))
-import Bowtie.Memo (Memo (..), MemoF, pattern MemoFP, pattern MemoP)
+import Bowtie.Memo (Memo (..), MemoF, memoFKey, reMkMemo, reMkMemoM, pattern MemoFP, pattern MemoP)
 import Bowtie.SMap (Deleted, Inserted, Member, SMap, Val, deleteSMap, indexSMap, insertSMap, updateSMap)
 import Data.Kind (Type)
 import Data.Proxy (Proxy)
@@ -61,12 +61,18 @@ instance (WithAttr d s k j) => WithAttr d s (MemoF f k x) (MemoF f j x) where
 attrSetter :: (WithAttr d s k j) => Proxy d -> Proxy s -> Setter j k () (Val d s)
 attrSetter pd ps = sets (\f -> withAttr pd ps (f ()))
 
-memoWithAttr :: (WithAttr d s k j, Functor f) => Proxy d -> Proxy s -> (j -> Val d s) -> Memo f j -> Memo f k
-memoWithAttr pd ps f = fmap (\j -> withAttr pd ps (f j) j)
+memoWithAttr
+  :: (WithAttr d s k j, Functor f) => Proxy d -> Proxy s -> (MemoF f j (Memo f k) -> Val d s) -> Memo f j -> Memo f k
+memoWithAttr pd ps f = reMkMemo (\mfmk -> let v = f mfmk in withAttr pd ps v (memoFKey mfmk))
 
 memoWithAttrM
-  :: (WithAttr d s k j, Traversable f, Monad m) => Proxy d -> Proxy s -> (j -> m (Val d s)) -> Memo f j -> m (Memo f k)
-memoWithAttrM pd ps f = traverse (\j -> fmap (\v -> withAttr pd ps v j) (f j))
+  :: (WithAttr d s k j, Traversable f, Monad m)
+  => Proxy d
+  -> Proxy s
+  -> (MemoF f j (Memo f k) -> m (Val d s))
+  -> Memo f j
+  -> m (Memo f k)
+memoWithAttrM pd ps f = reMkMemoM (\mfmk -> fmap (\v -> withAttr pd ps v (memoFKey mfmk)) (f mfmk))
 
 memoWithoutAttr :: (WithAttr d s k j, Functor f) => Proxy d -> Proxy s -> Memo f k -> Memo f j
 memoWithoutAttr pd ps = fmap (withoutAttr pd ps)
