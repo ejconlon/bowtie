@@ -13,8 +13,10 @@
 module Bowtie.SMap
   ( Val
   , Member
+  , NonMember
   , Inserted
   , Deleted
+  , Reordered
   , SMap
   , emptySMap
   , singletonSMap
@@ -22,16 +24,19 @@ module Bowtie.SMap
   , updateSMap
   , insertSMap
   , deleteSMap
+  , reorderSMap
   )
 where
 
+import Data.Coerce (coerce)
 import Data.Dependent.Map (DMap)
 import Data.Dependent.Map qualified as DMap
 import Data.Functor.Identity (Identity (..))
 import Data.GADT.Compare (GCompare (..), GEq (..), GOrdering (..), defaultCompare, defaultEq)
 import Data.Kind (Type)
 import Data.Proxy (Proxy (..))
-import Data.Type.Equality ((:~:) (..))
+import Data.Type.Bool (type (||))
+import Data.Type.Equality ((:~:) (..), type (==))
 import GHC.TypeLits (KnownSymbol, OrderingI (..), Symbol, cmpSymbol, sameSymbol)
 
 type family Val (d :: Type) (s :: Symbol) :: Type
@@ -83,42 +88,55 @@ insertDM ps v = DMap.insert (key ps) (Identity v)
 deleteDM :: (KnownSymbol s) => Proxy s -> DM d -> DM d
 deleteDM ps = DMap.delete (key ps)
 
-type family SymEq (a :: Symbol) (b :: Symbol) where
-  SymEq a a = True
-  SymEq a b = False
+-- type family BoolEqF (x :: Symbol) (y :: Symbol) :: Bool where
+--   BoolEqF x x = True
+--   BoolEqF x y = False
+--
+-- castBoolEq :: (BoolEqF x y == True) => x :~: y
+-- castBoolEq = undefined
 
--- | x is a member of xs
+type family MemberF (x :: Symbol) (xs :: [Symbol]) :: Bool where
+  MemberF x '[] = False
+  MemberF x (x : zs) = True
+  MemberF x (y : zs) = MemberF x zs
+
 class Member (x :: Symbol) (xs :: [Symbol])
 
-instance {-# OVERLAPS #-} Member x (x : xs)
+instance (MemberF x (y : zs) ~ True, (x == y || MemberF x zs) ~ True) => Member x (y : zs)
 
-instance {-# OVERLAPS #-} (SymEq x y ~ False, Member x xs) => Member x (y : xs)
-
--- | x is NOT a member of xs
 class NonMember (x :: Symbol) (xs :: [Symbol])
 
 instance NonMember x '[]
 
-instance (SymEq x y ~ False, NonMember x xs) => NonMember x (y : xs)
+instance (MemberF x (y : zs) ~ False, (x == y || MemberF x zs) ~ False) => NonMember x (y : zs)
 
--- | x inserted into xs is zs (and x is not already member of xs, so xs /= zs)
-class (NonMember x xs, Member x zs) => Inserted (x :: Symbol) (xs :: [Symbol]) (zs :: [Symbol]) | x xs -> zs, xs zs -> x
+type family InsertedF (x :: Symbol) (xs :: [Symbol]) :: [Symbol] where
+  InsertedF x '[] = '[x]
+  InsertedF x (x : zs) = x : zs
+  InsertedF x (y : zs) = y : InsertedF x zs
 
-instance {-# OVERLAPS #-} Inserted x '[] (x : '[])
+class (Member x zs) => Inserted (x :: Symbol) (xs :: [Symbol]) (zs :: [Symbol]) | x xs -> zs
 
-instance {-# OVERLAPS #-} (SymEq x y ~ False, Inserted x xs zs) => Inserted x (y ': xs) (y ': zs)
+instance (zs ~ InsertedF x '[], Member x zs) => Inserted x '[] zs
 
--- | x removed from xs is zs (and x is member of xs, so xs /= zs)
-class
-  (Member x xs, NonMember x zs) =>
-  Deleted (x :: Symbol) (xs :: [Symbol]) (zs :: [Symbol])
-    | x xs -> zs
-    , xs zs -> x
-    , x zs -> xs
+instance (zs ~ InsertedF x (y : ys), Member x zs) => Inserted x (y : ys) zs
 
-instance {-# OVERLAPS #-} (NonMember x xs) => Deleted x (x : xs) xs
+type family DeletedF (x :: Symbol) (xs :: [Symbol]) :: [Symbol] where
+  DeletedF x '[] = '[]
+  DeletedF x (x : zs) = zs
+  DeletedF x (y : zs) = y : DeletedF x zs
 
-instance {-# OVERLAPS #-} (SymEq x y ~ False, Deleted x xs zs) => Deleted x (y ': xs) (y ': zs)
+class (NonMember x zs) => Deleted (x :: Symbol) (xs :: [Symbol]) (zs :: [Symbol]) | x xs -> zs
+
+instance (zs ~ DeletedF x '[]) => Deleted x '[] zs
+
+instance (zs ~ DeletedF x (y : ys), NonMember x zs) => Deleted x (y : ys) zs
+
+class Reordered (xs :: [Symbol]) (zs :: [Symbol])
+
+instance Reordered '[] '[]
+
+instance (Reordered xs (DeletedF x zs)) => Reordered (x : xs) zs
 
 newtype SMap (d :: Type) (xs :: [Symbol]) = SMap (DM d)
 
@@ -139,3 +157,6 @@ insertSMap ps v (SMap m) = SMap (insertDM ps v m)
 
 deleteSMap :: (KnownSymbol s, Deleted s xs zs) => Proxy s -> SMap d xs -> SMap d zs
 deleteSMap ps (SMap m) = SMap (deleteDM ps m)
+
+reorderSMap :: (Reordered xs zs) => SMap d xs -> SMap d zs
+reorderSMap = coerce
