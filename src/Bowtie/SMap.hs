@@ -1,6 +1,15 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
+-- | 'SMap' is a "symbol map": Given a domain 'd' and symbol 's', an 'SMap d'
+-- maps 's' to a value 'Val d s'.
+--
+-- Why is this useful? Consider the following scenario: you have some DAG of
+-- transformations that read and write annotations on some datatype, for example,
+-- in a compiler. Then you can type these transformations according to the
+-- what they read and write. These transormations can be grouped into a
+-- domain 'd', and each annotation can be identified by a key symbol 's' and
+-- a value type 'Val d s'.
 module Bowtie.SMap
   ( Val
   , Member
@@ -74,7 +83,7 @@ insertDM ps v = DMap.insert (key ps) (Identity v)
 deleteDM :: (KnownSymbol s) => Proxy s -> DM d -> DM d
 deleteDM ps = DMap.delete (key ps)
 
--- | x is a member of xs
+-- | x is a member of the xs (where xs is _sorted_)
 class Member (x :: Symbol) (xs :: [Symbol])
 
 instance Member x (x : xs)
