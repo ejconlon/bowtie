@@ -1,7 +1,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
-module Bowtie.Member
+module Bowtie.SMap
   ( Val
   , Member
   , Inserted

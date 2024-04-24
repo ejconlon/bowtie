@@ -12,8 +12,8 @@ module Bowtie.Attr
 where
 
 import Bowtie.Anno (Anno (..))
-import Bowtie.Member (Deleted, Inserted, Member, SMap, Val, deleteSMap, indexSMap, insertSMap, updateSMap)
 import Bowtie.Memo (Memo (..), MemoF, pattern MemoFP, pattern MemoP)
+import Bowtie.SMap (Deleted, Inserted, Member, SMap, Val, deleteSMap, indexSMap, insertSMap, updateSMap)
 import Data.Kind (Type)
 import Data.Proxy (Proxy)
 import GHC.TypeLits (KnownSymbol, Symbol)

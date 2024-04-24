@@ -33,9 +33,9 @@ library
       Bowtie.Foldable
       Bowtie.Jot
       Bowtie.Knot
-      Bowtie.Member
       Bowtie.Memo
       Bowtie.Rewrite
+      Bowtie.SMap
   other-modules:
       Paths_bowtie
   hs-source-dirs:
