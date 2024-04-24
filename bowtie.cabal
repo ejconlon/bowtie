@@ -27,6 +27,7 @@ source-repository head
 library
   exposed-modules:
       Bowtie
+      Bowtie.Member
       Bowtie.Rewrite
   other-modules:
       Paths_bowtie
@@ -63,9 +64,11 @@ library
       base >=4.12 && <5
     , bifunctors ==5.6.*
     , comonad ==5.0.*
+    , dependent-map ==0.4.*
     , mtl ==2.3.*
     , nonempty-containers ==0.3.*
     , prettyprinter ==1.7.*
     , recursion-schemes ==5.2.*
     , semigroupoids ==6.0.*
+    , some ==1.0.*
   default-language: GHC2021

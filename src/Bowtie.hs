@@ -314,6 +314,15 @@ instance (Functor f) => Corecursive (Memo f k) where embed = Memo
 mkMemo :: (Recursive t, Base t ~ f) => (f k -> k) -> t -> Memo f k
 mkMemo f = cata (\v -> MemoP (f (fmap memoKey v)) v)
 
+-- | Rebuild a memo with a new annotation added.
+reMkMemo :: (Functor f) => (j -> x -> k) -> (f (Memo f k) -> x) -> Memo f j -> Memo f k
+reMkMemo mem calc = go
+ where
+  go (MemoP j fm) =
+    let fk = fmap go fm
+        k = mem j (calc fk)
+    in  MemoP k fk
+
 -- | Forget keys at every level and convert back to a plain structure.
 unMkMemo :: (Corecursive t, Base t ~ f) => Memo f k -> t
 unMkMemo (MemoP _ v) = embed (fmap unMkMemo v)
