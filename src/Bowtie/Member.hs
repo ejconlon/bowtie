@@ -6,12 +6,13 @@ module Bowtie.Member
   , Member
   , Inserted
   , Deleted
-  , SM
-  , emptySM
-  , singletonSM
-  , indexSM
-  , insertSM
-  , deleteSM
+  , SMap
+  , emptySMap
+  , singletonSMap
+  , indexSMap
+  , updateSMap
+  , insertSMap
+  , deleteSMap
   )
 where
 
@@ -73,41 +74,43 @@ insertDM ps v = DMap.insert (key ps) (Identity v)
 deleteDM :: (KnownSymbol s) => Proxy s -> DM d -> DM d
 deleteDM ps = DMap.delete (key ps)
 
+-- | x is a member of xs
 class Member (x :: Symbol) (xs :: [Symbol])
 
 instance Member x (x : xs)
 
 instance {-# OVERLAPS #-} (CmpSymbol x y ~ GT, Member x xs) => Member x (y : xs)
 
-class Inserted (x :: Symbol) (xs :: [Symbol]) (zs :: [Symbol]) | x xs -> zs
+-- | x inserted into xs is zs (and x is not already member of xs, so xs /= zs)
+class (Member x zs) => Inserted (x :: Symbol) (xs :: [Symbol]) (zs :: [Symbol]) | x xs -> zs, xs zs -> x
 
 instance Inserted x '[] (x : '[])
 
-instance Inserted x (x : xs) (x : xs)
-
 instance {-# OVERLAPS #-} (CmpSymbol x y ~ GT, Inserted x xs zs) => Inserted x (y ': xs) (y ': zs)
 
-class Deleted (x :: Symbol) (xs :: [Symbol]) (zs :: [Symbol]) | x xs -> zs
-
-instance Deleted x '[] '[]
+-- | x removed from xs is zs (and x is member of xs, so xs /= zs)
+class Deleted (x :: Symbol) (xs :: [Symbol]) (zs :: [Symbol]) | x xs -> zs, xs zs -> x, x zs -> xs
 
 instance Deleted x (x : xs) xs
 
 instance {-# OVERLAPS #-} (CmpSymbol x y ~ GT, Deleted x xs zs) => Deleted x (y ': xs) (y ': zs)
 
-newtype SM (d :: Type) (xs :: [Symbol]) = SM (DM d)
+newtype SMap (d :: Type) (xs :: [Symbol]) = SMap (DM d)
 
-emptySM :: SM d '[]
-emptySM = SM emptyDM
+emptySMap :: SMap d '[]
+emptySMap = SMap emptyDM
 
-singletonSM :: (KnownSymbol s) => Proxy s -> Val d s -> SM d '[s]
-singletonSM ps v = SM (singletonDM ps v)
+singletonSMap :: (KnownSymbol s) => Proxy s -> Val d s -> SMap d '[s]
+singletonSMap ps v = SMap (singletonDM ps v)
 
-indexSM :: (KnownSymbol s, Member s xs) => Proxy s -> SM d xs -> Val d s
-indexSM ps (SM m) = indexDM ps m
+indexSMap :: (KnownSymbol s, Member s xs) => Proxy s -> SMap d xs -> Val d s
+indexSMap ps (SMap m) = indexDM ps m
 
-insertSM :: (KnownSymbol s, Inserted s xs zs) => Proxy s -> Val d s -> SM d xs -> SM d zs
-insertSM ps v (SM m) = SM (insertDM ps v m)
+updateSMap :: (KnownSymbol s, Member s xs) => Proxy s -> Val d s -> SMap d xs -> SMap d xs
+updateSMap ps v (SMap m) = SMap (insertDM ps v m)
 
-deleteSM :: (KnownSymbol s, Deleted s xs zs) => Proxy s -> SM d xs -> SM d zs
-deleteSM ps (SM m) = SM (deleteDM ps m)
+insertSMap :: (KnownSymbol s, Inserted s xs zs) => Proxy s -> Val d s -> SMap d xs -> SMap d zs
+insertSMap ps v (SMap m) = SMap (insertDM ps v m)
+
+deleteSMap :: (KnownSymbol s, Deleted s xs zs) => Proxy s -> SMap d xs -> SMap d zs
+deleteSMap ps (SMap m) = SMap (deleteDM ps m)

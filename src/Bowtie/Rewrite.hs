@@ -2,7 +2,7 @@
 
 module Bowtie.Rewrite where
 
-import Bowtie (Jot, pattern JotP)
+import Bowtie.Jot (Jot, pattern JotP)
 import Control.Exception (Exception)
 import Control.Monad ((>=>))
 import Control.Monad.Except (ExceptT (..), MonadError (..), runExceptT)
