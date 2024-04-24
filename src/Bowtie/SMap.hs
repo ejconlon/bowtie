@@ -32,7 +32,7 @@ import Data.GADT.Compare (GCompare (..), GEq (..), GOrdering (..), defaultCompar
 import Data.Kind (Type)
 import Data.Proxy (Proxy (..))
 import Data.Type.Equality ((:~:) (..))
-import GHC.TypeLits (CmpSymbol, KnownSymbol, OrderingI (..), Symbol, cmpSymbol, sameSymbol)
+import GHC.TypeLits (KnownSymbol, OrderingI (..), Symbol, cmpSymbol, sameSymbol)
 
 type family Val (d :: Type) (s :: Symbol) :: Type
 
@@ -83,26 +83,42 @@ insertDM ps v = DMap.insert (key ps) (Identity v)
 deleteDM :: (KnownSymbol s) => Proxy s -> DM d -> DM d
 deleteDM ps = DMap.delete (key ps)
 
--- | x is a member of the xs (where xs is _sorted_)
+type family SymEq (a :: Symbol) (b :: Symbol) where
+  SymEq a a = True
+  SymEq a b = False
+
+-- | x is a member of xs
 class Member (x :: Symbol) (xs :: [Symbol])
 
-instance Member x (x : xs)
+instance {-# OVERLAPS #-} Member x (x : xs)
 
-instance {-# OVERLAPS #-} (CmpSymbol x y ~ GT, Member x xs) => Member x (y : xs)
+instance {-# OVERLAPS #-} (SymEq x y ~ False, Member x xs) => Member x (y : xs)
+
+-- | x is NOT a member of xs
+class NonMember (x :: Symbol) (xs :: [Symbol])
+
+instance NonMember x '[]
+
+instance (SymEq x y ~ False, NonMember x xs) => NonMember x (y : xs)
 
 -- | x inserted into xs is zs (and x is not already member of xs, so xs /= zs)
-class (Member x zs) => Inserted (x :: Symbol) (xs :: [Symbol]) (zs :: [Symbol]) | x xs -> zs, xs zs -> x
+class (NonMember x xs, Member x zs) => Inserted (x :: Symbol) (xs :: [Symbol]) (zs :: [Symbol]) | x xs -> zs, xs zs -> x
 
-instance Inserted x '[] (x : '[])
+instance {-# OVERLAPS #-} Inserted x '[] (x : '[])
 
-instance {-# OVERLAPS #-} (CmpSymbol x y ~ GT, Inserted x xs zs) => Inserted x (y ': xs) (y ': zs)
+instance {-# OVERLAPS #-} (SymEq x y ~ False, Inserted x xs zs) => Inserted x (y ': xs) (y ': zs)
 
 -- | x removed from xs is zs (and x is member of xs, so xs /= zs)
-class Deleted (x :: Symbol) (xs :: [Symbol]) (zs :: [Symbol]) | x xs -> zs, xs zs -> x, x zs -> xs
+class
+  (Member x xs, NonMember x zs) =>
+  Deleted (x :: Symbol) (xs :: [Symbol]) (zs :: [Symbol])
+    | x xs -> zs
+    , xs zs -> x
+    , x zs -> xs
 
-instance Deleted x (x : xs) xs
+instance {-# OVERLAPS #-} (NonMember x xs) => Deleted x (x : xs) xs
 
-instance {-# OVERLAPS #-} (CmpSymbol x y ~ GT, Deleted x xs zs) => Deleted x (y ': xs) (y ': zs)
+instance {-# OVERLAPS #-} (SymEq x y ~ False, Deleted x xs zs) => Deleted x (y ': xs) (y ': zs)
 
 newtype SMap (d :: Type) (xs :: [Symbol]) = SMap (DM d)
 
