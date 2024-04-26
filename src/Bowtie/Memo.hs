@@ -19,10 +19,13 @@ module Bowtie.Memo
   , memoRight
   , memoRightM
   , memoExtend
+  , memoFix
+  , memoStructEq
   )
 where
 
 import Bowtie.Anno (Anno (..), annoRight, annoRightM)
+import Bowtie.Fix (Fix)
 import Control.Monad.Reader (Reader, ReaderT (..), runReader)
 import Data.Functor.Apply (Apply (..))
 import Data.Functor.Foldable (Base, Corecursive (..), Recursive (..))
@@ -153,3 +156,11 @@ memoRightM f = annoRightM f . unMemoF . unMemo
 -- | Re-annotate top-down
 memoExtend :: (Functor f) => (Memo f k -> x) -> Memo f k -> Memo f x
 memoExtend w = go where go m@(MemoP _ v) = MemoP (w m) (fmap go v)
+
+-- | Forget annotations (useful because the type annotation is tricky)
+memoFix :: (Functor f) => Memo f k -> Fix f
+memoFix = unMkMemo
+
+-- | Structural equality, ignoring annotations
+memoStructEq :: (Functor f, Eq (f (Fix f))) => Memo f k -> Memo f k -> Bool
+memoStructEq m1 m2 = memoFix m1 == memoFix m2
