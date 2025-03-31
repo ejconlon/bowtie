@@ -8,6 +8,7 @@ module Bowtie.Memo
   , Memo (..)
   , pattern MemoP
   , mkMemo
+  , mkMemoM
   , reMkMemo
   , reMkMemoM
   , unMkMemo
@@ -26,6 +27,7 @@ where
 
 import Bowtie.Anno (Anno (..), annoRight, annoRightM)
 import Bowtie.Fix (Fix)
+import Bowtie.Foldable (cataM)
 import Control.Monad.Reader (Reader, ReaderT (..), runReader)
 import Data.Functor.Apply (Apply (..))
 import Data.Functor.Foldable (Base, Corecursive (..), Recursive (..))
@@ -98,6 +100,9 @@ instance (Functor f) => Corecursive (Memo f k) where embed = Memo
 -- function to calculate a key for every level.
 mkMemo :: (Recursive t, Base t ~ f) => (f k -> k) -> t -> Memo f k
 mkMemo f = cata (\v -> MemoP (f (fmap memoKey v)) v)
+
+mkMemoM :: (Monad m, Recursive t, Base t ~ f, Traversable f) => (f k -> m k) -> t -> m (Memo f k)
+mkMemoM f = cataM (\v -> fmap (`MemoP` v) (f (fmap memoKey v)))
 
 -- | Rebuild a memo with a new annotation.
 reMkMemo :: (Functor f) => (MemoF f j (Memo f k) -> k) -> Memo f j -> Memo f k

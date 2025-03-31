@@ -15,6 +15,7 @@ module Bowtie.SMap
   , Member
   , NonMember
   , Inserted
+  , Without
   , Deleted
   , Reordered
   , SMap
@@ -88,13 +89,6 @@ insertDM ps v = DMap.insert (key ps) (Identity v)
 deleteDM :: (KnownSymbol s) => Proxy s -> DM d -> DM d
 deleteDM ps = DMap.delete (key ps)
 
--- type family BoolEqF (x :: Symbol) (y :: Symbol) :: Bool where
---   BoolEqF x x = True
---   BoolEqF x y = False
---
--- castBoolEq :: (BoolEqF x y == True) => x :~: y
--- castBoolEq = undefined
-
 type family MemberF (x :: Symbol) (xs :: [Symbol]) :: Bool where
   MemberF x '[] = False
   MemberF x (x : zs) = True
@@ -121,14 +115,22 @@ instance (zs ~ InsertedF x '[], Member x zs) => Inserted x '[] zs
 
 instance (zs ~ InsertedF x (y : ys), Member x zs) => Inserted x (y : ys) zs
 
+type family WithoutF (x :: Symbol) (xs :: [Symbol]) :: [Symbol] where
+  WithoutF x '[] = '[]
+  WithoutF x (x : zs) = zs
+  WithoutF x (y : zs) = y : WithoutF x zs
+
+class (NonMember x zs) => Without (x :: Symbol) (xs :: [Symbol]) (zs :: [Symbol]) | x xs -> zs
+
+instance (zs ~ WithoutF x '[]) => Without x '[] zs
+
+instance (zs ~ WithoutF x (y : ys), NonMember x zs) => Without x (y : ys) zs
+
 type family DeletedF (x :: Symbol) (xs :: [Symbol]) :: [Symbol] where
-  DeletedF x '[] = '[]
   DeletedF x (x : zs) = zs
   DeletedF x (y : zs) = y : DeletedF x zs
 
 class (NonMember x zs) => Deleted (x :: Symbol) (xs :: [Symbol]) (zs :: [Symbol]) | x xs -> zs
-
-instance (zs ~ DeletedF x '[]) => Deleted x '[] zs
 
 instance (zs ~ DeletedF x (y : ys), NonMember x zs) => Deleted x (y : ys) zs
 

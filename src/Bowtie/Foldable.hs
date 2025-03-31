@@ -1,5 +1,6 @@
 module Bowtie.Foldable
-  ( Base1
+  ( cataM
+  , Base1
   , Recursive1 (..)
   , Corecursive1 (..)
   , cata1
@@ -14,7 +15,11 @@ import Control.Monad ((>=>))
 import Data.Bifoldable (Bifoldable (..))
 import Data.Bifunctor (Bifunctor (..))
 import Data.Bitraversable (Bitraversable (..))
+import Data.Functor.Foldable (Base, Recursive (..))
 import Data.Kind (Type)
+
+cataM :: (Monad m, Recursive t, Base t ~ f, Traversable f) => (f k -> m k) -> t -> m k
+cataM f = cata (sequence >=> f)
 
 -- | 'Base' for Bifunctors
 type family Base1 (f :: Type -> Type) :: Type -> Type -> Type

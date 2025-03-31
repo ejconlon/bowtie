@@ -1,11 +1,11 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.36.0.
+-- This file has been generated from package.yaml by hpack version 0.37.0.
 --
 -- see: https://github.com/sol/hpack
 
 name:           bowtie
-version:        0.4.0
+version:        0.5.0
 synopsis:       Tying knots in polynomial functors
 description:    Please see the README on GitHub at <https://github.com/ejconlon/bowtie#readme>
 homepage:       https://github.com/ejconlon/bowtie#readme
@@ -16,7 +16,7 @@ copyright:      (c) 2023 Eric Conlon
 license:        BSD3
 build-type:     Simple
 tested-with:
-    GHC == 9.6.4
+    GHC == 9.8.4
 extra-source-files:
     README.md
 
