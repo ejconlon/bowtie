@@ -31,6 +31,7 @@ library
       Bowtie.Attr
       Bowtie.Fix
       Bowtie.Foldable
+      Bowtie.Free
       Bowtie.Jot
       Bowtie.Knot
       Bowtie.Memo
