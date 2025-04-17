@@ -1,12 +1,10 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 module Bowtie.Jot
-  ( JotF (..)
-  , pattern JotFP
+  ( JotF (.., JotFP)
   , jotFKey
   , jotFVal
-  , Jot (..)
-  , pattern JotP
+  , Jot (.., JotP)
   , mkJot
   , unMkJot
   , annoJot

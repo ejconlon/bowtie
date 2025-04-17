@@ -1,12 +1,10 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 module Bowtie.Memo
-  ( MemoF (..)
-  , pattern MemoFP
+  ( MemoF (.., MemoFP)
   , memoFKey
   , memoFVal
-  , Memo (..)
-  , pattern MemoP
+  , Memo (.., MemoP)
   , mkMemo
   , mkMemoM
   , reMkMemo
@@ -37,7 +35,7 @@ import Prettyprinter (Pretty (..))
 
 -- | The base functor for a 'Memo'
 newtype MemoF f k r = MemoF {unMemoF :: Anno k (f r)}
-  deriving stock (Show, Functor)
+  deriving stock (Show, Functor, Foldable, Traversable)
   deriving newtype (Eq, Ord)
 
 pattern MemoFP :: k -> f r -> MemoF f k r

@@ -5,9 +5,7 @@
 -- See https://hackage.haskell.org/package/free-5.1.7/docs/Control-Monad-Trans-Free.html
 module Bowtie.Free
   ( FreeF (..)
-  , Free (..)
-  , pattern FreeEmbed
-  , pattern FreePure
+  , Free (.., FreeEmbed, FreePure)
   , substFree
   , liftFree
   , iterFree
