@@ -15,17 +15,22 @@ module Bowtie.SMap
   , Member
   , NonMember
   , Inserted
-  , Without
   , Deleted
   , Reordered
+  , Unioned
+  , Merged
   , SMap
   , emptySMap
+  , unionSMap
+  , MergeFn
+  , mergeSMap
   , singletonSMap
   , indexSMap
   , updateSMap
   , insertSMap
   , deleteSMap
   , reorderSMap
+  , keysSMap
   )
 where
 
@@ -36,9 +41,10 @@ import Data.Functor.Identity (Identity (..))
 import Data.GADT.Compare (GCompare (..), GEq (..), GOrdering (..), defaultCompare, defaultEq)
 import Data.Kind (Type)
 import Data.Proxy (Proxy (..))
+import Data.Some (Some (..))
 import Data.Type.Bool (type (||))
 import Data.Type.Equality ((:~:) (..), type (==))
-import GHC.TypeLits (KnownSymbol, OrderingI (..), Symbol, cmpSymbol, sameSymbol)
+import GHC.TypeLits (KnownSymbol, OrderingI (..), Symbol, cmpSymbol, sameSymbol, symbolVal)
 
 type family Val (d :: Type) (s :: Symbol) :: Type
 
@@ -68,6 +74,9 @@ instance Ord (Key d v) where
 
 key :: (KnownSymbol s, v ~ Val d s) => Proxy s -> Key d v
 key = flip Key Proxy
+
+keyString :: Key d v -> String
+keyString (Key p _) = symbolVal p
 
 type DM (d :: Type) = DMap (Key d) Identity
 
@@ -115,17 +124,6 @@ instance (zs ~ InsertedF x '[], Member x zs) => Inserted x '[] zs
 
 instance (zs ~ InsertedF x (y : ys), Member x zs) => Inserted x (y : ys) zs
 
-type family WithoutF (x :: Symbol) (xs :: [Symbol]) :: [Symbol] where
-  WithoutF x '[] = '[]
-  WithoutF x (x : zs) = zs
-  WithoutF x (y : zs) = y : WithoutF x zs
-
-class (NonMember x zs) => Without (x :: Symbol) (xs :: [Symbol]) (zs :: [Symbol]) | x xs -> zs
-
-instance (zs ~ WithoutF x '[]) => Without x '[] zs
-
-instance (zs ~ WithoutF x (y : ys), NonMember x zs) => Without x (y : ys) zs
-
 type family DeletedF (x :: Symbol) (xs :: [Symbol]) :: [Symbol] where
   DeletedF x (x : zs) = zs
   DeletedF x (y : zs) = y : DeletedF x zs
@@ -140,10 +138,38 @@ instance Reordered '[] '[]
 
 instance (Reordered xs (DeletedF x zs)) => Reordered (x : xs) zs
 
+type family UnionedF (xs :: [Symbol]) (ys :: [Symbol]) :: [Symbol] where
+  UnionedF '[] ys = ys
+  UnionedF (x : xs) ys = UnionedF xs (InsertedF x ys)
+
+class Unioned (xs :: [Symbol]) (ys :: [Symbol]) (zs :: [Symbol]) | xs ys -> zs
+
+instance Unioned '[] ys ys
+
+instance (NonMember x ys, UnionedF xs ys ~ zs) => Unioned (x : xs) ys (x : zs)
+
+type family MergedF (xs :: [Symbol]) (ys :: [Symbol]) :: [Symbol] where
+  MergedF '[] ys = ys
+  MergedF (x : xs) ys = MergedF xs (InsertedF x ys)
+
+class Merged (xs :: [Symbol]) (ys :: [Symbol]) (zs :: [Symbol]) | xs ys -> zs
+
+instance Merged '[] ys ys
+
+instance (MergedF xs ys ~ ws, InsertedF x ws ~ zs) => Merged (x : xs) ys zs
+
 newtype SMap (d :: Type) (xs :: [Symbol]) = SMap (DM d)
 
 emptySMap :: SMap d '[]
 emptySMap = SMap emptyDM
+
+unionSMap :: (Unioned xs ys zs) => SMap d xs -> SMap d ys -> SMap d zs
+unionSMap (SMap dmx) (SMap dmy) = SMap (DMap.union dmx dmy)
+
+type MergeFn (d :: Type) = forall (s :: Symbol). (KnownSymbol s) => Proxy s -> Val d s -> Val d s -> Val d s
+
+mergeSMap :: (Merged xs ys zs) => MergeFn d -> SMap d xs -> SMap d ys -> SMap d zs
+mergeSMap f (SMap dmx) (SMap dmy) = SMap (DMap.unionWithKey (\(Key p _) (Identity vx) (Identity vy) -> Identity (f p vx vy)) dmx dmy)
 
 singletonSMap :: (KnownSymbol s) => Proxy s -> Val d s -> SMap d '[s]
 singletonSMap ps v = SMap (singletonDM ps v)
@@ -162,3 +188,6 @@ deleteSMap ps (SMap m) = SMap (deleteDM ps m)
 
 reorderSMap :: (Reordered xs zs) => SMap d xs -> SMap d zs
 reorderSMap = coerce
+
+keysSMap :: SMap d xs -> [String]
+keysSMap (SMap m) = fmap (\(Some k) -> keyString k) (DMap.keys m)
