@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveAnyClass #-}
+
 module Bowtie.Anno
   ( Anno (..)
   , annoUnit
@@ -11,6 +13,8 @@ module Bowtie.Anno
   )
 where
 
+import Data.Hashable (Hashable)
+import GHC.Generics (Generic)
 import Control.Comonad (Comonad (..))
 import Control.Exception (Exception)
 import Control.Monad.Reader (Reader, ReaderT (..), runReader)
@@ -27,7 +31,8 @@ import Prettyprinter (Pretty (..))
 -- | An "annotation" with associated value.
 type Anno :: Type -> Type -> Type
 data Anno k v = Anno {annoKey :: !k, annoVal :: !v}
-  deriving stock (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving stock (Eq, Ord, Show, Functor, Foldable, Traversable, Generic)
+  deriving anyclass (Hashable)
 
 instance Bifunctor Anno where
   bimap f g (Anno k v) = Anno (f k) (g v)

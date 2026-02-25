@@ -24,6 +24,7 @@ module Bowtie.Memo
 where
 
 import Bowtie.Anno (Anno (..), annoRight, annoRightM)
+import Data.Hashable (Hashable)
 import Bowtie.Fix (Fix)
 import Bowtie.Foldable (cataM)
 import Control.Monad.Reader (Reader, ReaderT (..), runReader)
@@ -36,7 +37,7 @@ import Prettyprinter (Pretty (..))
 -- | The base functor for a 'Memo'
 newtype MemoF f k r = MemoF {unMemoF :: Anno k (f r)}
   deriving stock (Show, Functor, Foldable, Traversable)
-  deriving newtype (Eq, Ord)
+  deriving newtype (Eq, Ord, Hashable)
 
 pattern MemoFP :: k -> f r -> MemoF f k r
 pattern MemoFP k v = MemoF (Anno k v)
@@ -72,6 +73,8 @@ pattern MemoP k v = Memo (MemoF (Anno k v))
 deriving newtype instance (Eq k, Eq (f (Memo f k))) => Eq (Memo f k)
 
 deriving newtype instance (Ord k, Ord (f (Memo f k))) => Ord (Memo f k)
+
+deriving newtype instance (Hashable k, Hashable (f (Memo f k))) => Hashable (Memo f k)
 
 deriving stock instance (Show k, Show (f (Memo f k))) => Show (Memo f k)
 
