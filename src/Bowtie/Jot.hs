@@ -25,6 +25,7 @@ import Control.Monad.Reader (Reader, ReaderT (..), runReader)
 import Data.Bifoldable (Bifoldable (..))
 import Data.Bifunctor (Bifunctor (..))
 import Data.Bitraversable (Bitraversable (..))
+import Data.Hashable (Hashable)
 import Data.Kind (Type)
 import Data.String (IsString (..))
 import Prettyprinter (Pretty (..))
@@ -32,7 +33,7 @@ import Prettyprinter (Pretty (..))
 -- | The base functor for a 'Jot'
 newtype JotF g k a r = JotF {unJotF :: Anno k (g a r)}
   deriving stock (Show, Functor)
-  deriving newtype (Eq, Ord)
+  deriving newtype (Eq, Ord, Hashable)
 
 pattern JotFP :: k -> g a r -> JotF g k a r
 pattern JotFP k v = JotF (Anno k v)
@@ -72,6 +73,8 @@ deriving newtype instance (Eq k, Eq (g a (Jot g k a))) => Eq (Jot g k a)
 deriving newtype instance (Ord k, Ord (g a (Jot g k a))) => Ord (Jot g k a)
 
 deriving stock instance (Show k, Show (g a (Jot g k a))) => Show (Jot g k a)
+
+deriving newtype instance (Hashable k, Hashable (g a (Jot g k a))) => Hashable (Jot g k a)
 
 deriving newtype instance (Monoid k, IsString (g a (Jot g k a))) => IsString (Jot g k a)
 
