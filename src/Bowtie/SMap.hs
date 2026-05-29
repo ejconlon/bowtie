@@ -37,9 +37,11 @@ where
 import Data.Coerce (coerce)
 import Data.Dependent.Map (DMap)
 import Data.Dependent.Map qualified as DMap
+import Data.EqP (EqP (..))
 import Data.Functor.Identity (Identity (..))
 import Data.GADT.Compare (GCompare (..), GEq (..), GOrdering (..), defaultCompare, defaultEq)
 import Data.Kind (Type)
+import Data.OrdP (OrdP (..))
 import Data.Proxy (Proxy (..))
 import Data.Some (Some (..))
 import Data.Type.Bool (type (||))
@@ -59,6 +61,12 @@ instance GEq (Key d) where
   geq (Key ps1 _) (Key ps2 _) =
     fmap (\Refl -> Refl) (sameSymbol ps1 ps2)
 
+instance EqP (Key d) where
+  eqp (Key ps1 _) (Key ps2 _) =
+    case sameSymbol ps1 ps2 of
+      Just Refl -> True
+      Nothing -> False
+
 instance Eq (Key d v) where
   (==) = defaultEq
 
@@ -68,6 +76,13 @@ instance GCompare (Key d) where
       LTI -> GLT
       EQI -> GEQ
       GTI -> GGT
+
+instance OrdP (Key d) where
+  comparep (Key ps1 _) (Key ps2 _) =
+    case cmpSymbol ps1 ps2 of
+      LTI -> LT
+      EQI -> EQ
+      GTI -> GT
 
 instance Ord (Key d v) where
   compare = defaultCompare

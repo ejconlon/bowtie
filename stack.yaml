@@ -3,5 +3,12 @@ resolver: nightly-2026-05-27
 ghc-options:
   "$everything": -haddock
 
+extra-deps:
+- some-1.1
+
+allow-newer: true
+allow-newer-deps:
+- dependent-sum
+
 packages:
 - .
